@@ -1,0 +1,12 @@
+{
+  "appId": "com.nightshift.physique",
+  "appName": "Night Shift Physique",
+  "webDir": "www",
+  "backgroundColor": "#121615",
+  "android": {
+    "adjustMarginsForEdgeToEdge": "auto"
+  },
+  "ios": {
+    "contentInset": "never"
+  }
+}
