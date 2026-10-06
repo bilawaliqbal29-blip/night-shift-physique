@@ -23,6 +23,17 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Put app files into www and assets folders
+        run: |
+          mkdir -p www assets
+          for f in index.html manifest.webmanifest sw.js icon-192.png icon-512.png; do
+            if [ -f "$f" ] && [ ! -f "www/$f" ]; then cp "$f" www/; fi
+          done
+          for f in icon-only.png icon-foreground.png icon-background.png splash.png splash-dark.png; do
+            if [ -f "$f" ] && [ ! -f "assets/$f" ]; then cp "$f" assets/; fi
+          done
+          ls -la www assets
+
       - name: Install packages
         run: npm install
 
