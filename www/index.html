@@ -170,6 +170,7 @@ textarea{width:100%;min-height:80px;background:var(--sunk);border:1px solid var(
   <button role="tab" id="t-me" data-tab="me" aria-selected="false">Profile</button>
 </div></nav>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ================= EXERCISE LIBRARY ================= */
 const X={
@@ -337,18 +338,44 @@ async function flush(){
   else if(failed) setStatus("Couldn't reach your account. Saved on this phone.","err");
   else setStatus(mode==="cloud"?"Saved to your account":"Saved on this phone","ok");
 }
+/* ================= SUPABASE SYNC (schema: fitness) ================= */
+const SB_URL="https://nmbmtdeoceprhsorlenq.supabase.co",SB_KEY="sb_publishable_sredBn5j6gFF8LLRP2qVmw_eeVUrwPG";
+let sb=null,sbUser=null;
+function sbClient(){if(!sb&&window.supabase&&window.supabase.createClient){try{sb=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:"nsp-auth"}})}catch(e){sb=null}}return sb}
+async function sbColl(){const c=sbClient();if(!c)return null;const {data}=await c.auth.getSession();sbUser=data&&data.session?data.session.user:null;if(!sbUser)return null;
+return{doc:k=>({set:async body=>{const {error}=await c.rpc("fitness_set",{p_key:k,p_data:body});if(error)throw Object.assign(new Error(error.message),{code:"unavailable"})}}),
+get:async()=>{const {data,error}=await c.rpc("fitness_get");if(error)throw error;return{docs:(data||[]).map(r=>({id:r.k,exists:true,data:()=>r.data}))}}}}
+function acctHtml(){
+if(!sbClient())return `<div class="card" id="acct"><h2>Sync across devices</h2><p class="muted" style="margin:6px 0 0">Sync isn't available right now (no internet?). Your logs are saved on this device.</p></div>`;
+if(sbUser)return `<div class="card stack" id="acct"><h2>Sync across devices</h2><p class="muted" style="margin:0">Signed in as <b>${esc(sbUser.email||"")}</b>. Your logs sync to every browser and phone where you sign in.</p><div class="row"><button class="btn" id="acSync" type="button">Sync now</button><button class="btn" id="acOut" type="button">Sign out</button></div><span id="acMsg" class="status"></span></div>`;
+return `<div class="card stack" id="acct"><h2>Sync across devices</h2><p class="muted" style="margin:0">Sign in to keep your logs in sync on every browser and phone. Anything already logged here is uploaded when you sign in.</p>
+<div class="field"><label for="acEmail">Email</label><input id="acEmail" type="email" autocomplete="email"></div>
+<div class="field"><label for="acPass">Password</label><input id="acPass" type="password" autocomplete="current-password"></div>
+<div class="row"><button class="btn primary" id="acIn" type="button">Sign in</button><button class="btn" id="acUp" type="button">Create account</button></div><span id="acMsg" class="status"></span></div>`}
+function addAcct(){const me=document.getElementById("tab-me");if(!me)return;const old=document.getElementById("acct");if(old)old.remove();me.insertAdjacentHTML("beforeend",acctHtml())}
+document.addEventListener("click",async e=>{const b=e.target.closest&&e.target.closest("#acIn,#acUp,#acOut,#acSync");if(!b)return;const c=sbClient();if(!c)return;
+const msg=t=>{const m=document.getElementById("acMsg");if(m)m.textContent=t};
+if(b.id==="acOut"){await c.auth.signOut();sbUser=null;coll=null;mode="local";setStatus("Saved on this phone");addAcct();return}
+if(b.id==="acSync"){msg("Syncing…");await init();return}
+const email=(document.getElementById("acEmail").value||"").trim(),password=document.getElementById("acPass").value||"";
+if(!email||password.length<6){msg("Enter your email and a password of at least 6 characters.");return}
+b.disabled=true;msg(b.id==="acIn"?"Signing in…":"Creating account…");
+try{if(b.id==="acIn"){const {error}=await c.auth.signInWithPassword({email,password});if(error)throw error}
+else{const {data,error}=await c.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});if(error)throw error;
+if(!data.session){msg("Account created. Check your email to confirm it, then sign in here.");b.disabled=false;return}}
+await init()}catch(err){msg((err&&err.message)||"Something went wrong");b.disabled=false}});
+const _renderMe=renderMe;renderMe=function(){_renderMe();addAcct()};
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"&&mode==="cloud"&&!pending.size&&!flushing)init()});
+
 async function init(){
   const local=loadLocal();logs=local.logs||{};settings=Object.assign({start:null,profile:null},local.settings||{});
   viewDate=logicalDate(new Date());renderAll();
   if(!P()) showTab("me");
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
-  const C=window.claude;
-  if(!C||!C.use){setStatus("Saved on this phone");return}
   try{
-    const [db,user]=await Promise.all([C.use("db"),C.use("user")]);
-    const uid=user?await user.id():null;
-    if(!db||!uid){setStatus("Saved on this phone");return}
-    coll=db.collection("data/users/"+uid);mode="cloud";
+    coll=await sbColl();
+    if(!coll){mode="local";setStatus("Saved on this phone");return}
+    mode="cloud";
     const snap=await coll.get();const remote={};let rs=null;
     snap.docs.forEach(d=>{if(!d.exists)return;if(d.id==="settings")rs=JSON.parse(JSON.stringify(d.data()));else remote[d.id]=JSON.parse(JSON.stringify(d.data()))});
     for(const k of Object.keys(logs)) if(!remote[k]) pending.add(k);
