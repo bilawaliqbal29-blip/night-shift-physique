@@ -124,6 +124,7 @@ nav.tabs button{background:none;border:0;padding:12px 4px 13px;font:700 .95rem v
 nav.tabs button[aria-selected="true"]{color:var(--fg);border-top-color:var(--accent)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:420px){h1{font-size:1.95rem}.sets{grid-template-columns:64px repeat(auto-fill,minmax(46px,1fr))}}
+.xgrid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:8px;margin-top:8px}.xrow{gap:8px;padding:6px 0;border-top:1px solid rgba(127,127,127,.25)}.xrow .btn.icon{flex:none}@media (max-width:440px){.xgrid{grid-template-columns:1fr 1fr 1fr}.xgrid .field:first-child{grid-column:1/-1}}
 </style>
 <style>
 nav.tabs .in{grid-template-columns:repeat(5,1fr)}
@@ -235,8 +236,6 @@ function parse(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d
 function addDays(s,n){const d=parse(s);d.setDate(d.getDate()+n);return ymd(d)}
 function fmtDate(s){return parse(s).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"})}
 function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
-function tzName(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"this phone's time zone"}catch(_){return "this phone's time zone"}}
-function tzOffset(){const m=-new Date().getTimezoneOffset(),sg=m>=0?"+":"-",a=Math.abs(m);return "UTC"+sg+Math.floor(a/60)+(a%60?":"+pad(a%60):"")}
 function toMin(t){const [h,m]=(t||"0:0").split(":").map(Number);return (h||0)*60+(m||0)}
 function fmt12(m){m=((Math.round(m/15)*15)%1440+1440)%1440;let h=Math.floor(m/60),mm=m%60;const ap=h<12?"AM":"PM";h=h%12||12;return h+":"+pad(mm)+" "+ap}
 
@@ -317,94 +316,50 @@ function meals(p,kcal,prot){
 
 /* ================= STORAGE ================= */
 const LKEY="nsp-logs-v1";
-let storageOK=true;
-function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LKEY)||"{}");return j&&typeof j==="object"?j:{}}catch(e){storageOK=false;return {}}}
-function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify({logs,settings}));storageOK=true}catch(e){storageOK=false}}
-function localLabel(){return storageOK?"Saved on this phone":"Not saving: open the app or the website link, not a downloaded file"}
+function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LKEY)||"{}");return j&&typeof j==="object"?j:{}}catch(e){return {}}}
+function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify({logs,settings}))}catch(e){}}
 function setStatus(t,cls){const el=document.getElementById("status");el.textContent=t;el.className="status "+(cls||"")}
 const pending=new Set();let timer=null,flushing=false;
-function queueSave(k){
-  const o=k==="settings"?settings:logs[k];if(o)o.ts=Date.now();
-  pending.add(k);saveLocal();
-  if(!storageOK&&!coll){setStatus(localLabel(),"err");return}
-  setStatus("Saving…");clearTimeout(timer);timer=setTimeout(flush,700)}
+function queueSave(k){pending.add(k);saveLocal();setStatus("Saving…");clearTimeout(timer);timer=setTimeout(flush,700)}
 async function flush(){
   if(flushing){timer=setTimeout(flush,400);return}
-  if(!coll){pending.clear();setStatus(localLabel(),storageOK?"ok":"err");return}
   flushing=true;const keys=[...pending];pending.clear();let failed=false;
   for(const k of keys){
-    if(!coll)break;
-    const src=k==="settings"?settings:logs[k];if(!src)continue;
-    const body=JSON.parse(JSON.stringify(src));
+    if(!coll)continue;
+    const body=JSON.parse(JSON.stringify(k==="settings"?settings:logs[k]));
     try{await coll.doc(k).set(body)}catch(e){
       if(e&&e.code==="unavailable"){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await coll.doc(k).set(body);continue}catch(_){}}
       if(e&&e.code==="invalid_argument"){coll=null;mode="local"}
       failed=true}
   }
   flushing=false;
-  if(failed&&!coll) setStatus(localLabel(),storageOK?"ok":"err");
+  if(failed&&!coll) setStatus("Saved on this phone","ok");
   else if(failed) setStatus("Couldn't reach your account. Saved on this phone.","err");
-  else setStatus(mode==="cloud"?"Saved to your account":localLabel(),"ok");
-}
-// Keep whichever copy of each day was changed most recently, so an older
-// copy from the account never overwrites what you just entered.
-async function syncCloud(){
-  if(!coll)return;
-  const snap=await coll.get();let changed=false;
-  snap.docs.forEach(d=>{
-    if(!d.exists)return;const r=JSON.parse(JSON.stringify(d.data()));
-    if(d.id==="settings"){
-      if((r.ts||0)>(settings.ts||0)&&(r.profile||!settings.profile)){settings=Object.assign({start:null,profile:null},r);changed=true}
-      else if((settings.ts||0)>(r.ts||0)||(!r.profile&&settings.profile))pending.add("settings");
-    }else{
-      const l=logs[d.id];
-      if(!l||(r.ts||0)>(l.ts||0)){logs[d.id]=r;changed=true}
-      else if((l.ts||0)>(r.ts||0))pending.add(d.id);
-    }
-  });
-  const ids=new Set(snap.docs.filter(d=>d.exists).map(d=>d.id));
-  for(const k of Object.keys(logs)) if(!ids.has(k)) pending.add(k);
-  if(!ids.has("settings")&&(settings.profile||settings.start)) pending.add("settings");
-  if(changed){saveLocal();refreshView()}
-  if(pending.size) flush(); else setStatus("Synced to your account","ok");
+  else setStatus(mode==="cloud"?"Saved to your account":"Saved on this phone","ok");
 }
 async function init(){
   const local=loadLocal();logs=local.logs||{};settings=Object.assign({start:null,profile:null},local.settings||{});
-  saveLocal();
-  viewDate=lastToday=logicalDate(new Date());renderAll();
+  viewDate=logicalDate(new Date());renderAll();
   if(!P()) showTab("me");
-  setStatus(localLabel(),storageOK?"":"err");
   try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
   const C=window.claude;
-  if(!C||!C.use)return;
+  if(!C||!C.use){setStatus("Saved on this phone");return}
   try{
     const [db,user]=await Promise.all([C.use("db"),C.use("user")]);
     const uid=user?await user.id():null;
-    if(!db||!uid)return;
+    if(!db||!uid){setStatus("Saved on this phone");return}
     coll=db.collection("data/users/"+uid);mode="cloud";
-    const hadProfile=!!P();
-    await syncCloud();
-    if(!hadProfile&&P()) showTab("today");
-  }catch(e){setStatus(localLabel(),storageOK?"":"err")}
+    const snap=await coll.get();const remote={};let rs=null;
+    snap.docs.forEach(d=>{if(!d.exists)return;if(d.id==="settings")rs=JSON.parse(JSON.stringify(d.data()));else remote[d.id]=JSON.parse(JSON.stringify(d.data()))});
+    for(const k of Object.keys(logs)) if(!remote[k]) pending.add(k);
+    logs=Object.assign({},logs,remote);
+    if(rs){settings=Object.assign({start:null,profile:null},rs,{profile:rs.profile||settings.profile});if(!rs.profile&&settings.profile)pending.add("settings")}
+    else if(settings.profile||settings.start) pending.add("settings");
+    saveLocal();viewDate=logicalDate(new Date());renderAll();
+    if(P()&&document.getElementById("tab-me").hidden===false&&!local.settings?.profile) showTab("today");
+    if(pending.size) flush(); else setStatus("Synced to your account","ok");
+  }catch(e){setStatus("Saved on this phone")}
 }
-
-/* ---- keep "today" current when the app is left open or resumed ---- */
-let lastToday=null;
-function activeTab(){const b=document.querySelector('nav.tabs button[aria-selected="true"]');return b?b.dataset.tab:"today"}
-function refreshView(){
-  const ae=document.activeElement;
-  if(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)&&activeTab()==="me")return; // don't wipe a profile being typed
-  whoLine();renderToday();renderPlan();renderDiet();renderProgress();
-  if(activeTab()!=="me")renderMe();
-}
-function checkNewDay(){
-  const t=logicalDate(new Date());
-  if(t!==lastToday){if(viewDate===lastToday)viewDate=t;lastToday=t;refreshView()}
-}
-document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){checkNewDay();syncCloud().catch(()=>{})}});
-window.addEventListener("focus",checkNewDay);
-window.addEventListener("pageshow",checkNewDay);
-setInterval(checkNewDay,60000);
 
 /* ================= HELPERS ================= */
 function getLog(date){
@@ -424,6 +379,18 @@ function needProfile(){return `<div class="card stack"><h2>Set up your profile f
 function whoLine(){const p=P();document.getElementById("who").textContent=p?[p.name,p.age?p.age+" y":"",p.weight?p.weight+" kg":"",p.cm?p.cm+" cm":""].filter(Boolean).join(" · "):"Your personal gym and diet log"}
 
 /* ================= TODAY ================= */
+const FOODS=[["Samosa (1)",260,4],["Pakoray (1 plate, 100 g)",300,6],["Plain paratha (1)",300,6],["Aloo paratha (1)",350,7],["Naan (1)",300,9],["Puri (1)",150,3],["Halwa (1 small bowl)",350,4],["Chana (puri wala, 1 bowl)",250,10],["Chicken biryani (1 plate)",650,30],["Chicken karahi (1 bowl)",400,30],["Nihari (1 bowl)",450,30],["Haleem (1 bowl)",400,22],["Seekh kabab (1)",150,10],["Shawarma (1)",450,25],["Burger (1)",550,25],["Zinger burger (1)",600,26],["Pizza (1 slice)",285,12],["Fries (medium)",360,4],["Chips (small pack)",160,2],["Biscuits (4)",200,3],["Cold drink (1 can, 330 ml)",140,0],["Chai with sugar (1 cup)",120,3],["Sweet lassi (1 glass)",250,8],["Gulab jamun (1)",150,2],["Jalebi (100 g)",380,3],["Mithai (1 piece)",180,3],["Ice cream (1 scoop)",140,2],["Fruit chaat (1 bowl)",150,2],["Dahi bhalla (1 plate)",300,9],["Banana shake (1 glass)",300,9]];
+function extrasHtml(L){
+  const x=L.extra||[];
+  const list=x.map((f,i)=>`<div class="row xrow"><span class="sp">${esc(f.n)}${f.q!==1?" × "+f.q:""}</span><span class="macro">${Math.round(f.k*f.q)} kcal · ${Math.round(f.p*f.q)} g P</span><button class="btn icon" data-xdel="${i}" aria-label="Remove ${esc(f.n)}">×</button></div>`).join("");
+  return `<div class="xfood"><div class="row" style="margin:14px 0 6px"><b class="sp">Extra food (not in plan)</b></div>${list||`<p class="muted" style="margin:0 0 8px;font-size:.9rem">Ate something not in the plan? Add it here and it counts in the day's calories and protein.</p>`}
+  <div class="field"><label for="xpick">Quick pick (rough estimates)</label><select id="xpick"><option value="">Choose a common food…</option>${FOODS.map((f,i)=>`<option value="${i}">${esc(f[0])}, ~${f[1]} kcal</option>`).join("")}</select></div>
+  <div class="xgrid"><div class="field"><label for="xn">Food</label><input id="xn" placeholder="e.g. Samosa"></div>
+  <div class="field"><label for="xk">kcal (each)</label><input id="xk" type="number" inputmode="numeric" min="0"></div>
+  <div class="field"><label for="xp">Protein g</label><input id="xp" type="number" inputmode="decimal" min="0"></div>
+  <div class="field"><label for="xq">Qty</label><input id="xq" type="number" inputmode="decimal" value="1" min="0.5" step="0.5"></div></div>
+  <button class="btn primary" id="xadd" style="margin-top:10px;width:100%">Add extra food</button></div>`;
+}
 function renderToday(){
   const el=document.getElementById("tab-today");
   if(!P()){el.innerHTML=`<div><div class="eyebrow">Welcome</div><h1>Your gym & diet log</h1></div>`+needProfile();return}
@@ -462,7 +429,7 @@ function renderToday(){
     <label class="check"><input type="checkbox" id="done"${L.done?" checked":""}><span class="body"><b>Workout complete</b></span></label></div>`
   :`<div class="card"><h2>Rest day</h2><p class="muted" style="margin:6px 0 0">${plan.steps.toLocaleString()} steps and 15–20 min of stretching. Eat the same meals; the pre-workout coffee is optional.</p>
     <label class="check" style="margin-top:6px"><input type="checkbox" id="done"${L.done?" checked":""}><span class="body"><b>Walk and stretch done</b></span></label></div>`}
-  <div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp">Meals</h2><span class="eyebrow">~${plan.kcal} kcal · ${plan.prot} g protein</span></div>${mealsHtml}</div>
+  <div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp">Meals</h2><span class="eyebrow">~${plan.kcal} kcal · ${plan.prot} g protein</span></div>${mealsHtml}${extrasHtml(L)}</div>
   <div class="card stack"><div class="row"><h2 class="sp">Water</h2><span class="num muted" id="waterTxt"></span></div><div class="glasses">${glasses}</div></div>
   <div class="card"><h2 style="margin-bottom:10px">Body & recovery</h2><div class="grid2">
       <div class="field"><label for="weight">Weight (kg) on waking</label><input type="number" inputmode="decimal" id="weight" data-f="weight" value="${esc(L.weight)}" placeholder="${esc(p.weight)}"></div>
@@ -475,9 +442,10 @@ function renderToday(){
 function renderSummary(){
   const el=document.getElementById("summary");if(!el||!P())return;
   const plan=compute(P()),L=getLog(viewDate),eaten=plan.meals.filter(m=>L.meals[m.id]);
-  const kcal=eaten.reduce((a,m)=>a+m.kcal,0),pr=eaten.reduce((a,m)=>a+m.p,0),w=L.water||0;
+  const xs=L.extra||[],xk=Math.round(xs.reduce((a,f)=>a+f.k*f.q,0)),xp=xs.reduce((a,f)=>a+f.p*f.q,0);
+  const kcal=Math.round(eaten.reduce((a,m)=>a+m.kcal,0)+xk),pr=Math.round(eaten.reduce((a,m)=>a+m.p,0)+xp),w=L.water||0;
   el.innerHTML=`<div class="stats">
-    <div class="stat"><span class="eyebrow">Calories</span><b>${kcal}</b><div class="meter"><i style="width:${Math.min(100,kcal/plan.kcal*100)}%"></i></div></div>
+    <div class="stat"><span class="eyebrow">Calories</span><b>${kcal}</b>${xk?`<div class="muted" style="font-size:.75rem">incl. ${xk} extra${kcal>plan.kcal?` · ${kcal-plan.kcal} over`:""}</div>`:""}<div class="meter"><i style="width:${Math.min(100,kcal/plan.kcal*100)}%"></i></div></div>
     <div class="stat"><span class="eyebrow">Protein</span><b>${pr} g</b><div class="meter"><i style="width:${Math.min(100,pr/plan.prot*100)}%"></i></div></div>
     <div class="stat"><span class="eyebrow">Water</span><b>${w}/${plan.water}</b><div class="meter"><i style="width:${Math.min(100,w/plan.water*100)}%"></i></div></div></div>`;
   const wt=document.getElementById("waterTxt");if(wt)wt.textContent=`${w} / ${plan.water} glasses (250 ml)`;
@@ -510,7 +478,7 @@ function renderPlan(){
   <div class="card"><h2 style="margin-bottom:8px">Your daily schedule</h2><div class="tablewrap"><table><tbody>
     ${rows.map(r=>`<tr><td class="n">${r[1]}</td><td>${esc(r[2])}</td></tr>`).join("")}
   </tbody></table></div>
-  <p class="tip" style="margin:8px 0 0">Times follow this phone's clock: ${tzName()} (${tzOffset()}). The day in this app rolls over at ${fmt12(rollHour()*60)}, so a late-night snack is logged on the right day.</p></div>`;
+  <p class="tip" style="margin:8px 0 0">The day in this app rolls over at ${fmt12(rollHour()*60)}, so a late-night snack is logged on the right day.</p></div>`;
 }
 
 /* ================= DIET ================= */
@@ -627,7 +595,6 @@ function renderMe(){
       <div class="field wide"><label>Gym days per week</label>${seg("days",[["3","3"],["4","4"],["5","5"],["6","6"]],p.days)}</div>
       <div class="field wide"><label>Rest of your day</label>${seg("activity",[["desk","Desk / mostly sitting"],["moderate","On my feet some"],["active","Physical job"]],p.activity)}</div>
       <div class="field wide"><label>Food</label>${seg("diet",[["nonveg","Non-veg"],["egg","Eggs, no meat"],["veg","Vegetarian"]],p.diet)}</div>
-      <p class="tip wide" style="margin:0">Enter times in your local time. This phone is set to <b>${tzName()}</b> (${tzOffset()}).</p>
       <div class="field"><label for="f-wake">Wake up</label><input type="time" id="f-wake" value="${esc(p.wake)}"></div>
       <div class="field"><label for="f-gym">Gym start</label><input type="time" id="f-gym" value="${esc(p.gym)}"></div>
       <div class="field"><label for="f-sleep">Sleep</label><input type="time" id="f-sleep" value="${esc(p.sleep)}"></div>
@@ -680,17 +647,24 @@ today.addEventListener("input",e=>{
 });
 today.addEventListener("change",e=>{
   const t=e.target;if(!P())return;const L=getLog(viewDate);
+  if(t.id==="xpick"){const f=FOODS[+t.value];if(f){document.getElementById("xn").value=f[0];document.getElementById("xk").value=f[1];document.getElementById("xp").value=f[2];document.getElementById("xq").value=1}return}
   if(t.dataset.meal){L.meals[t.dataset.meal]=t.checked;renderSummary();queueSave(viewDate)}
   else if(t.id==="cardio"||t.id==="done"){L[t.id]=t.checked;queueSave(viewDate)}
   else if(t.id==="dayKey"){L.dayKey=t.value;queueSave(viewDate);renderToday()}
 });
 today.addEventListener("click",e=>{
   const t=e.target.closest("button");if(!t||!P())return;
+  if(t.id==="xadd"||t.dataset.xdel!=null){const L=getLog(viewDate);L.extra=L.extra||[];
+    if(t.id==="xadd"){const n=document.getElementById("xn").value.trim(),k=+document.getElementById("xk").value,pp=+document.getElementById("xp").value||0,q=+document.getElementById("xq").value||1;
+      if(!n||!(k>0)){alert("Enter the food name and its calories, or choose one from Quick pick.");return}
+      L.extra.push({n,k,p:pp,q})}
+    else L.extra.splice(+t.dataset.xdel,1);
+    queueSave(viewDate);renderToday();return}
   if(t.dataset.glass!=null){const L=getLog(viewDate),i=+t.dataset.glass;L.water=(L.water||0)===i+1?i:i+1;
     today.querySelectorAll(".glass").forEach((g,j)=>g.classList.toggle("on",j<L.water));renderSummary();queueSave(viewDate)}
   else if(t.id==="prev"){viewDate=addDays(viewDate,-1);renderToday()}
   else if(t.id==="next"){viewDate=addDays(viewDate,1);renderToday()}
-  else if(t.id==="todayBtn"){checkNewDay();viewDate=lastToday;renderToday()}
+  else if(t.id==="todayBtn"){viewDate=logicalDate(new Date());renderToday()}
 });
 const me=document.getElementById("tab-me");
 me.addEventListener("submit",e=>{
@@ -716,7 +690,7 @@ me.addEventListener("click",async e=>{
     try{const j=JSON.parse(decodeURIComponent(escape(atob(document.getElementById("bkIn").value.trim()))));
       if(!j||typeof j.logs!=="object")throw 0;
       logs=j.logs;settings=Object.assign({start:null,profile:null},j.settings||{});
-      const now=Date.now();Object.keys(logs).forEach(k=>{logs[k].ts=now;pending.add(k)});queueSave("settings");checkNewDay();viewDate=lastToday;renderAll();showTab("today");
+      Object.keys(logs).forEach(k=>pending.add(k));queueSave("settings");viewDate=logicalDate(new Date());renderAll();showTab("today");
     }catch(_){b.textContent="Restore and replace my data";msg.textContent="That code didn't work. Copy the whole code and try again.";msg.className="status err"}
   }
 });
