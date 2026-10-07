@@ -1,0 +1,734 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#121615">
+<meta name="description" content="Personal gym split, desi diet plan and daily tracker">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Physique">
+<title>Night Shift Physique</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@500;600&display=swap">
+<style>
+/* Layout: a gym logbook. One column, day header, ruled exercise rows, bottom tab bar for thumb use. Haldi (turmeric) accent on steel-grey paper. */
+:root{
+  --bg:#EEF1F0; --surface:#FFFFFF; --sunk:#E3E8E6; --line:#CDD5D2;
+  --fg:#16201D; --muted:#5B6B66; --accent:#B87300; --accent-ink:#FFFFFF; --accent-soft:#F6E6C8;
+  --good:#2F7D4F; --warn:#A8501A;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:10px;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121615; --surface:#1A201E; --sunk:#232A28; --line:#2F3835;
+  --fg:#E7ECEA; --muted:#93A39D; --accent:#F0B243; --accent-ink:#1A1405; --accent-soft:#3A2E16;
+  --good:#6CC58F; --warn:#F09A62; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121615; --surface:#1A201E; --sunk:#232A28; --line:#2F3835;
+  --fg:#E7ECEA; --muted:#93A39D; --accent:#F0B243; --accent-ink:#1A1405; --accent-soft:#3A2E16;
+  --good:#6CC58F; --warn:#F09A62; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--body);margin:0}
+.wrap{max-width:720px;margin:0 auto;padding-inline:16px;padding-block:18px 110px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0;line-height:1.05;letter-spacing:.01em}
+h1{font-size:2.3rem;font-weight:800;text-transform:uppercase}
+h2{font-size:1.55rem;font-weight:700;text-transform:uppercase}
+h3{font-size:1.15rem;font-weight:700}
+.eyebrow{font:600 .72rem/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.stack{display:flex;flex-direction:column;gap:14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.sp{flex:1}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:14px 16px}
+.note{background:var(--accent-soft);border-radius:var(--r);padding:12px 14px;font-size:.92rem}
+.status{font:500 .72rem var(--mono);color:var(--muted)}
+.status.ok{color:var(--good)} .status.err{color:var(--warn)}
+button,select,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.btn{background:var(--sunk);border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-weight:600}
+.btn.icon{width:38px;height:38px;padding:0;font-size:1.1rem;display:grid;place-items:center}
+select{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+input[type=number],input[type=text]{background:var(--sunk);border:1px solid var(--line);border-radius:7px;padding:6px 8px;width:100%;min-width:0;font-family:var(--mono);font-variant-numeric:tabular-nums}
+input[type=number]::-webkit-inner-spin-button{opacity:.4}
+
+/* header */
+.dayhead{display:flex;gap:12px;align-items:flex-end;justify-content:space-between;flex-wrap:wrap}
+.daytag{display:inline-block;background:var(--accent);color:var(--accent-ink);font:700 .78rem var(--mono);letter-spacing:.08em;padding:3px 8px;border-radius:5px;text-transform:uppercase}
+
+/* exercise log */
+.ex{border-top:1px solid var(--line);padding-block:12px;display:grid;gap:8px}
+.ex:first-child{border-top:0;padding-top:2px}
+.exname{font-weight:600}
+.target{font:600 .8rem var(--mono);color:var(--accent);white-space:nowrap}
+.sets{display:grid;grid-template-columns:72px repeat(auto-fill,minmax(52px,1fr));gap:6px;align-items:center}
+.sets label{font:.66rem var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:2px}
+.last{font-size:.8rem;color:var(--muted)}
+.tip{font-size:.82rem;color:var(--muted)}
+
+/* checklist rows */
+.check{display:flex;gap:12px;align-items:flex-start;padding-block:10px;border-top:1px solid var(--line)}
+.check:first-of-type{border-top:0}
+.check input{width:22px;height:22px;accent-color:var(--accent);margin-top:2px;flex:none}
+.check .body{min-width:0;flex:1}
+.time{font:600 .78rem var(--mono);color:var(--accent)}
+.macro{font:500 .76rem var(--mono);color:var(--muted);white-space:nowrap}
+
+.glasses{display:flex;gap:5px;flex-wrap:wrap}
+.glass{width:26px;height:34px;border:2px solid var(--line);border-radius:3px 3px 8px 8px;background:transparent;padding:0}
+.glass.on{background:var(--accent);border-color:var(--accent)}
+
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.field label{display:block;font:.7rem var(--mono);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:4px}
+
+.meter{height:8px;background:var(--sunk);border-radius:99px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);border-radius:99px;transition:width .3s}
+
+/* plan tables */
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.9rem}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font:600 .7rem var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+td.n{font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.wd{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 6px;text-align:center;min-width:0}
+.wd b{display:block;font:700 1rem var(--display);text-transform:uppercase}
+.wd span{font:.66rem var(--mono);color:var(--muted)}
+.wd.rest{background:transparent;border-style:dashed}
+.wd.today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+ul.plain{margin:0;padding-left:18px} ul.plain li{margin-block:4px}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);padding:12px 14px}
+.stat b{display:block;font:600 1.5rem var(--mono);font-variant-numeric:tabular-nums}
+.chart svg{width:100%;height:auto;display:block}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart .lbl{fill:var(--muted);font:11px var(--mono)}
+.chart .pt{fill:var(--surface);stroke:var(--accent);stroke-width:2}
+.chart .ln{fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round}
+.chart .avg{fill:none;stroke:var(--fg);stroke-width:1.5;stroke-dasharray:4 4;opacity:.55}
+
+/* tabs */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav.tabs .in{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:720px}
+nav.tabs button{background:none;border:0;padding:12px 4px 13px;font:700 .95rem var(--display);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border-top:3px solid transparent}
+nav.tabs button[aria-selected="true"]{color:var(--fg);border-top-color:var(--accent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:420px){h1{font-size:1.95rem}.sets{grid-template-columns:64px repeat(auto-fill,minmax(46px,1fr))}}
+</style>
+<style>
+nav.tabs .in{grid-template-columns:repeat(5,1fr)}
+nav.tabs button{font-size:.88rem}
+.form{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.form .field select,.form .field input{width:100%}
+.form .wide{grid-column:1/-1}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg input{position:absolute;opacity:0;pointer-events:none}
+.seg label{border:1px solid var(--line);background:var(--sunk);border-radius:8px;padding:7px 12px;cursor:pointer;font-weight:500;font-size:.9rem;text-transform:none;letter-spacing:0;color:var(--fg);font-family:var(--body);margin:0}
+.seg input:checked+label{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.seg input:focus-visible+label{outline:2px solid var(--accent);outline-offset:2px}
+.hpair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.danger{border-color:var(--warn);color:var(--warn)}
+textarea{width:100%;min-height:80px;background:var(--sunk);border:1px solid var(--line);border-radius:7px;padding:8px;font:.8rem var(--mono);color:var(--fg)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+</style>
+
+
+<style>:root{padding-top:env(safe-area-inset-top,0px)} html,body{-webkit-text-size-adjust:100%}</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="row" style="margin-bottom:16px">
+    <div class="sp"><div class="eyebrow" id="who">Your personal gym and diet log</div></div>
+    <span id="status" class="status">Connecting…</span>
+  </header>
+  <main>
+    <section id="tab-today" class="stack"></section>
+    <section id="tab-plan" class="stack" hidden></section>
+    <section id="tab-diet" class="stack" hidden></section>
+    <section id="tab-progress" class="stack" hidden></section>
+    <section id="tab-me" class="stack" hidden></section>
+  </main>
+</div>
+
+<nav class="tabs" aria-label="Sections"><div class="in" role="tablist">
+  <button role="tab" id="t-today" data-tab="today" aria-selected="true">Today</button>
+  <button role="tab" id="t-plan" data-tab="plan" aria-selected="false">Workout</button>
+  <button role="tab" id="t-diet" data-tab="diet" aria-selected="false">Diet</button>
+  <button role="tab" id="t-progress" data-tab="progress" aria-selected="false">Progress</button>
+  <button role="tab" id="t-me" data-tab="me" aria-selected="false">Profile</button>
+</div></nav>
+
+<script>
+/* ================= EXERCISE LIBRARY ================= */
+const X={
+  bench:{n:"Flat bench press (barbell or dumbbell)",s:4,r:"6–10",tip:"Shoulder blades pinned back, bar to lower chest."},
+  incdb:{n:"Incline dumbbell press",s:3,r:"8–12",tip:"Bench at 30°. Builds the upper chest."},
+  ohp:{n:"Seated dumbbell shoulder press",s:3,r:"8–12",tip:"Stop just short of lockout."},
+  lat:{n:"Dumbbell lateral raise",s:4,r:"12–15",tip:"Light weight, slow lowering."},
+  push:{n:"Rope triceps pushdown",s:3,r:"10–15",tip:"Elbows glued to sides."},
+  ohtri:{n:"Overhead dumbbell triceps extension",s:2,r:"10–15",tip:""},
+  pd:{n:"Lat pulldown (or assisted pull-up)",s:4,r:"6–10",tip:"Pull elbows down to your back pockets."},
+  crow:{n:"Seated cable row",s:3,r:"8–12",tip:"Chest up, squeeze 1 second."},
+  dbrow:{n:"One-arm dumbbell row",s:3,r:"10–12",tip:"Per arm. Flat back."},
+  face:{n:"Face pull",s:3,r:"15",tip:"Rope to forehead. Good for posture after desk hours."},
+  curl:{n:"Dumbbell biceps curl",s:3,r:"10–12",tip:"No swinging."},
+  ham:{n:"Hammer curl",s:2,r:"10–12",tip:""},
+  squat:{n:"Back squat (or leg press if back is stiff)",s:4,r:"6–10",tip:"Depth over weight."},
+  rdl:{n:"Romanian deadlift",s:3,r:"8–10",tip:"Hips back, bar close to legs."},
+  lp:{n:"Leg press",s:3,r:"10–12",tip:""},
+  lcurl:{n:"Lying or seated leg curl",s:3,r:"10–15",tip:""},
+  calf:{n:"Standing calf raise",s:4,r:"12–15",tip:"Pause 2 seconds at the bottom."},
+  plank:{n:"Plank (seconds)",s:3,r:"40s",tip:"Log seconds held in the reps box."},
+  incbb:{n:"Incline barbell or Smith press",s:3,r:"6–10",tip:""},
+  csrow:{n:"Chest-supported or machine row",s:3,r:"8–12",tip:""},
+  pd2:{n:"Close-grip pulldown",s:3,r:"8–12",tip:""},
+  ss:{n:"Curl + pushdown superset",s:3,r:"12 + 12",tip:"Back to back, rest after both."},
+  dl:{n:"Deadlift (or trap-bar deadlift)",s:3,r:"5",tip:"Keep it light until form is solid."},
+  bss:{n:"Bulgarian split squat",s:3,r:"8–10",tip:"Per leg."},
+  lext:{n:"Leg extension",s:3,r:"12–15",tip:""},
+  scalf:{n:"Seated calf raise",s:3,r:"15",tip:""},
+  hkr:{n:"Hanging knee raise",s:3,r:"12",tip:"Slow, no swinging."},
+  hip:{n:"Barbell or machine hip thrust",s:3,r:"8–12",tip:"Squeeze glutes 1 second at the top."}
+};
+const DAYS={
+  push:{name:"Push",focus:"Chest · Shoulders · Triceps",ex:["bench","incdb","ohp","lat","push","ohtri"]},
+  pull:{name:"Pull",focus:"Back · Biceps · Rear delts",ex:["pd","crow","dbrow","face","curl","ham"]},
+  legs:{name:"Legs",focus:"Quads · Hamstrings · Calves · Core",ex:["squat","rdl","lp","lcurl","calf","plank"]},
+  upper:{name:"Upper",focus:"Chest · Back · Shoulders · Arms",ex:["incbb","csrow","ohp","pd2","lat","ss"]},
+  lower:{name:"Lower",focus:"Posterior chain · Core",ex:["dl","bss","lext","lcurl","scalf","hkr"]},
+  fullA:{name:"Full body A",focus:"Squat · Bench · Pulldown",ex:["squat","bench","pd","rdl","lat","plank"]},
+  fullB:{name:"Full body B",focus:"Deadlift · Incline · Row",ex:["dl","incdb","crow","lp","curl","push"]},
+  fullC:{name:"Full body C",focus:"Split squat · Press · Row",ex:["bss","ohp","dbrow","lcurl","face","hkr"]},
+  rest:{name:"Rest",focus:"Recovery · walk · stretch",ex:[]}
+};
+const SPLITS={ // index 0 = Sunday
+  3:["rest","fullA","rest","fullB","rest","fullC","rest"],
+  4:["rest","upper","lower","rest","upper","lower","rest"],
+  5:["rest","push","pull","legs","rest","upper","lower"],
+  6:["rest","push","pull","legs","push","pull","legs"]
+};
+const WEEKNAMES=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+
+/* ================= STATE ================= */
+let logs={}, settings={start:null,profile:null};
+let coll=null, mode="local";
+let viewDate=null;
+const P=()=>settings.profile;
+
+/* ================= DATES ================= */
+function pad(n){return String(n).padStart(2,"0")}
+function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
+function rollHour(){const p=P();if(!p)return 4;const h=Math.floor(toMin(p.sleep)/60);return h<12?Math.min(h+1,11):4}
+function logicalDate(d){return ymd(new Date(d.getTime()-rollHour()*3600e3))}
+function parse(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
+function addDays(s,n){const d=parse(s);d.setDate(d.getDate()+n);return ymd(d)}
+function fmtDate(s){return parse(s).toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"short"})}
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function tzName(){try{return Intl.DateTimeFormat().resolvedOptions().timeZone||"this phone's time zone"}catch(_){return "this phone's time zone"}}
+function tzOffset(){const m=-new Date().getTimezoneOffset(),sg=m>=0?"+":"-",a=Math.abs(m);return "UTC"+sg+Math.floor(a/60)+(a%60?":"+pad(a%60):"")}
+function toMin(t){const [h,m]=(t||"0:0").split(":").map(Number);return (h||0)*60+(m||0)}
+function fmt12(m){m=((Math.round(m/15)*15)%1440+1440)%1440;let h=Math.floor(m/60),mm=m%60;const ap=h<12?"AM":"PM";h=h%12||12;return h+":"+pad(mm)+" "+ap}
+
+/* ================= THE CALCULATOR ================= */
+function compute(p){
+  const h=p.cm/100, bmiW=25*h*h, basis=Math.min(p.weight,Math.max(bmiW,p.weight*0.8));
+  const bmr=10*p.weight+6.25*p.cm-5*p.age+(p.sex==="female"?-161:5);
+  const act={desk:1.2,moderate:1.35,active:1.5}[p.activity]||1.2;
+  const tdee=bmr*(act+p.days*0.035);
+  const adj={lose:0.85,recomp:0.93,build:1.1}[p.goal];
+  let kcal=Math.round(tdee*adj/50)*50;
+  kcal=Math.max(kcal,p.sex==="female"?1400:1700);
+  const prot=Math.round(basis*(p.goal==="lose"?2.0:1.8)/5)*5;
+  const fatPct=p.body==="heavier"?0.30:p.body==="lean"?0.22:0.25;
+  const fat=Math.round(kcal*fatPct/9), carbs=Math.max(0,Math.round((kcal-prot*4-fat*9)/4));
+  const water=Math.min(16,Math.max(8,Math.round(p.weight*0.035/0.25)));
+  const steps=p.goal==="lose"?9000:p.goal==="recomp"?8000:7000;
+  const cardio={lose:"20 min incline walk (incline 8–10, 5 km/h)",recomp:"15 min incline walk",build:"10 min easy walk to cool down"}[p.goal];
+  const week=SPLITS[p.days]||SPLITS[5];
+  return {bmr:Math.round(bmr),tdee:Math.round(tdee),kcal,prot,fat,carbs,water,steps,cardio,week,meals:meals(p,kcal,prot)};
+}
+function dayEx(key,p){
+  const ids=[...DAYS[key].ex];
+  if(p&&p.sex==="female"&&["legs","lower","fullB"].includes(key)) ids.splice(1,0,"hip");
+  return ids.map(id=>Object.assign({id},X[id]));
+}
+
+/* ---- meal timing: anchored on wake, gym and sleep ---- */
+function mealTimes(p){
+  const W=toMin(p.wake), rel=t=>(toMin(t)-W+1440)%1440;
+  const S=rel(p.sleep)||1020, G=rel(p.gym), GE=G+90;
+  const pre=Math.max(10,G-75), post=Math.min(GE+20,S-30);
+  const fixed=[{t:pre,type:"pre"},{t:post,type:"post"}];
+  if(pre-30>=90) fixed.push({t:30,type:"eggs"});
+  if(S-post>=180) fixed.push({t:S-90,type:"bed"});
+  fixed.sort((a,b)=>a.t-b.t);
+  // Spread the remaining meals over the gaps so no two land too close together.
+  const first=30,last=S-60,ft=fixed.map(s=>s.t),iv=[];
+  if(ft[0]-first>0) iv.push({a:first,b:ft[0],open:"start",k:0});
+  for(let i=1;i<ft.length;i++) iv.push({a:ft[i-1],b:ft[i],open:"",k:0});
+  if(last-ft[ft.length-1]>0) iv.push({a:ft[ft.length-1],b:last,open:"end",k:0});
+  const sp=(v,k)=>(v.b-v.a)/(v.open?k:k+1);
+  for(let n=fixed.length;n<5;n++){let best=null,bv=-1;for(const v of iv){const x=sp(v,v.k+1);if(x>bv){bv=x;best=v}}if(!best)break;best.k++}
+  const free=[];
+  for(const v of iv)for(let j=1;j<=v.k;j++){const step=sp(v,v.k);free.push({t:v.open==="start"?v.a+step*(j-1):v.a+step*j,type:null})}
+  const all=[...fixed,...free].sort((a,b)=>a.t-b.t);
+  const want=["eggs","main","bed"].filter(t=>!fixed.some(s=>s.type===t));
+  const open=all.filter(s=>!s.type);
+  if(want.includes("main")&&open.length){const d=s=>{const x=Math.abs(((W+s.t)%1440)-840);return Math.min(x,1440-x)};open.reduce((a,b)=>d(b)<d(a)?b:a).type="main"}
+  const rest=want.filter(t=>t!=="main");all.filter(s=>!s.type).forEach((s,i)=>s.type=rest[i]||"main");
+  return all.map(s=>({rel:s.t,clock:fmt12(W+s.t),abs:((W+s.t)%1440),type:s.type==="bed"?"snack":s.type}));
+}
+const bowls=n=>n+(n===1?" bowl":" bowls");
+const half=x=>Math.max(0.5,Math.round(x*2)/2);
+const r25=x=>Math.round(x/25)*25;
+function chap(n){const w=Math.floor(n),f=n-w>0;return (w?w:"")+(f?"½":"")+" chapati"}
+function meals(p,kcal,prot){
+  const f=kcal/2220, pf=prot/158, d=p.diet;
+  const meat=Math.min(250,Math.max(100,r25(150*pf))), eggsN=d==="nonveg"?Math.min(4,Math.max(2,Math.round(3*pf))):Math.min(5,Math.max(3,Math.round(4*pf)));
+  const dahi=Math.min(400,Math.max(150,r25(250*f))), rice=half(1*f);
+  const C={
+    eggs:{name:"Breakfast",base:[470,d==="egg"?34:31],items:
+      d==="veg"?`2 besan chilla (1 tsp oil) stuffed with ${r25(60*pf)} g paneer, 1 glass milk`
+      :`${eggsN} whole eggs + 2 egg whites as bhurji or omelette (1 tsp oil), ${chap(half(f))}, kheera-tamatar, 1 cup doodh patti (max 1 tsp sugar)`},
+    main:{name:"Lunch",base:[700,d==="nonveg"?58:36],items:
+      d==="nonveg"?`Chicken salan, ${meat} g boneless, ${chap(half(2*f))}, big salad, small bowl raita (1 tbsp oil for the whole portion)`
+      :d==="egg"?`${bowls(half(1.5*f))} daal or chana, ${chap(half(2*f))}, 3 boiled eggs, raita, salad`
+      :`${bowls(half(1.5*f))} daal or chana, ${chap(half(2*f))}, ${dahi} g raita, salad`},
+    pre:{name:"Natural pre-workout",base:[200,2],items:`${f>1.2?"2 bananas":"1 banana"} + 3 khajoor + 1 cup black coffee. Nimbu pani with a pinch of namak in your gym bottle.`},
+    post:{name:"Post-workout meal",base:[500,d==="nonveg"?49:34],items:
+      d==="nonveg"?`${meat} g grilled / tikka / handi chicken or fish, ${rice} cup boiled rice or ${chap(half(2*f))}, salad`
+      :d==="egg"?`${Math.min(6,eggsN+1)}-egg anda curry or bhurji, ${rice} cup rice or ${chap(half(2*f))}, salad`
+      :`Soya chunk or paneer salan (${r25(50*pf)} g dry soya or ${r25(120*pf)} g paneer), ${rice} cup rice, salad`},
+    snack:{name:"Dahi snack",base:[350,18],items:`${dahi} g dahi (or 1 glass milk) + 10 badaam + ½ cup boiled kala chana`}
+  };
+  return mealTimes(p).map((t,i)=>{const c=C[t.type],h=t.abs/60;let name=c.name;if(t.type==="eggs"&&!(h>=4&&h<13))name=d==="veg"?"Chilla meal":"Egg meal";if(t.type==="main"&&!(h>=11&&h<17))name="Main meal";return {id:"m"+(i+1),t:t.clock,name,items:c.items,kcal:Math.round(c.base[0]*f/10)*10,p:Math.round(c.base[1]*pf)}});
+}
+
+/* ================= STORAGE ================= */
+const LKEY="nsp-logs-v1";
+let storageOK=true;
+function loadLocal(){try{const j=JSON.parse(localStorage.getItem(LKEY)||"{}");return j&&typeof j==="object"?j:{}}catch(e){storageOK=false;return {}}}
+function saveLocal(){try{localStorage.setItem(LKEY,JSON.stringify({logs,settings}));storageOK=true}catch(e){storageOK=false}}
+function localLabel(){return storageOK?"Saved on this phone":"Not saving: open the app or the website link, not a downloaded file"}
+function setStatus(t,cls){const el=document.getElementById("status");el.textContent=t;el.className="status "+(cls||"")}
+const pending=new Set();let timer=null,flushing=false;
+function queueSave(k){
+  const o=k==="settings"?settings:logs[k];if(o)o.ts=Date.now();
+  pending.add(k);saveLocal();
+  if(!storageOK&&!coll){setStatus(localLabel(),"err");return}
+  setStatus("Saving…");clearTimeout(timer);timer=setTimeout(flush,700)}
+async function flush(){
+  if(flushing){timer=setTimeout(flush,400);return}
+  if(!coll){pending.clear();setStatus(localLabel(),storageOK?"ok":"err");return}
+  flushing=true;const keys=[...pending];pending.clear();let failed=false;
+  for(const k of keys){
+    if(!coll)break;
+    const src=k==="settings"?settings:logs[k];if(!src)continue;
+    const body=JSON.parse(JSON.stringify(src));
+    try{await coll.doc(k).set(body)}catch(e){
+      if(e&&e.code==="unavailable"){await new Promise(r=>setTimeout(r,800+Math.random()*800));try{await coll.doc(k).set(body);continue}catch(_){}}
+      if(e&&e.code==="invalid_argument"){coll=null;mode="local"}
+      failed=true}
+  }
+  flushing=false;
+  if(failed&&!coll) setStatus(localLabel(),storageOK?"ok":"err");
+  else if(failed) setStatus("Couldn't reach your account. Saved on this phone.","err");
+  else setStatus(mode==="cloud"?"Saved to your account":localLabel(),"ok");
+}
+// Keep whichever copy of each day was changed most recently, so an older
+// copy from the account never overwrites what you just entered.
+async function syncCloud(){
+  if(!coll)return;
+  const snap=await coll.get();let changed=false;
+  snap.docs.forEach(d=>{
+    if(!d.exists)return;const r=JSON.parse(JSON.stringify(d.data()));
+    if(d.id==="settings"){
+      if((r.ts||0)>(settings.ts||0)&&(r.profile||!settings.profile)){settings=Object.assign({start:null,profile:null},r);changed=true}
+      else if((settings.ts||0)>(r.ts||0)||(!r.profile&&settings.profile))pending.add("settings");
+    }else{
+      const l=logs[d.id];
+      if(!l||(r.ts||0)>(l.ts||0)){logs[d.id]=r;changed=true}
+      else if((l.ts||0)>(r.ts||0))pending.add(d.id);
+    }
+  });
+  const ids=new Set(snap.docs.filter(d=>d.exists).map(d=>d.id));
+  for(const k of Object.keys(logs)) if(!ids.has(k)) pending.add(k);
+  if(!ids.has("settings")&&(settings.profile||settings.start)) pending.add("settings");
+  if(changed){saveLocal();refreshView()}
+  if(pending.size) flush(); else setStatus("Synced to your account","ok");
+}
+async function init(){
+  const local=loadLocal();logs=local.logs||{};settings=Object.assign({start:null,profile:null},local.settings||{});
+  saveLocal();
+  viewDate=lastToday=logicalDate(new Date());renderAll();
+  if(!P()) showTab("me");
+  setStatus(localLabel(),storageOK?"":"err");
+  try{navigator.storage&&navigator.storage.persist&&navigator.storage.persist()}catch(_){}
+  const C=window.claude;
+  if(!C||!C.use)return;
+  try{
+    const [db,user]=await Promise.all([C.use("db"),C.use("user")]);
+    const uid=user?await user.id():null;
+    if(!db||!uid)return;
+    coll=db.collection("data/users/"+uid);mode="cloud";
+    const hadProfile=!!P();
+    await syncCloud();
+    if(!hadProfile&&P()) showTab("today");
+  }catch(e){setStatus(localLabel(),storageOK?"":"err")}
+}
+
+/* ---- keep "today" current when the app is left open or resumed ---- */
+let lastToday=null;
+function activeTab(){const b=document.querySelector('nav.tabs button[aria-selected="true"]');return b?b.dataset.tab:"today"}
+function refreshView(){
+  const ae=document.activeElement;
+  if(ae&&/INPUT|TEXTAREA|SELECT/.test(ae.tagName)&&activeTab()==="me")return; // don't wipe a profile being typed
+  whoLine();renderToday();renderPlan();renderDiet();renderProgress();
+  if(activeTab()!=="me")renderMe();
+}
+function checkNewDay(){
+  const t=logicalDate(new Date());
+  if(t!==lastToday){if(viewDate===lastToday)viewDate=t;lastToday=t;refreshView()}
+}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible"){checkNewDay();syncCloud().catch(()=>{})}});
+window.addEventListener("focus",checkNewDay);
+window.addEventListener("pageshow",checkNewDay);
+setInterval(checkNewDay,60000);
+
+/* ================= HELPERS ================= */
+function getLog(date){
+  if(!logs[date]) logs[date]={date,dayKey:(P()?compute(P()).week:SPLITS[5])[parse(date).getDay()],meals:{},ex:{},water:0};
+  if(!DAYS[logs[date].dayKey]) logs[date].dayKey="rest";
+  return logs[date];
+}
+function weekNo(date){const s=settings.start||date;return Math.max(1,Math.floor((parse(date)-parse(s))/864e5/7)+1)}
+function easeIn(date){const p=P();return p&&p.exp!=="regular"&&weekNo(date)<=2}
+function setsFor(ex,date){return easeIn(date)?Math.min(ex.s,2):ex.s}
+function lastFor(id,before){
+  const ds=Object.keys(logs).filter(d=>d<before&&logs[d].ex&&logs[d].ex[id]).sort().reverse();
+  for(const d of ds){const e=logs[d].ex[id];const reps=(e.r||[]).filter(x=>x!==""&&x!=null);if(e.w||reps.length)return `${e.w||"–"} kg × ${reps.join(", ")||"–"}`}
+  return "";
+}
+function needProfile(){return `<div class="card stack"><h2>Set up your profile first</h2><p class="muted" style="margin:0">Your workout split, calories and meal times are worked out from your age, height, weight, goal and daily routine. It takes about a minute.</p><div><button class="btn primary" data-go="me">Open profile</button></div></div>`}
+function whoLine(){const p=P();document.getElementById("who").textContent=p?[p.name,p.age?p.age+" y":"",p.weight?p.weight+" kg":"",p.cm?p.cm+" cm":""].filter(Boolean).join(" · "):"Your personal gym and diet log"}
+
+/* ================= TODAY ================= */
+function renderToday(){
+  const el=document.getElementById("tab-today");
+  if(!P()){el.innerHTML=`<div><div class="eyebrow">Welcome</div><h1>Your gym & diet log</h1></div>`+needProfile();return}
+  const p=P(),plan=compute(p),L=getLog(viewDate),D=DAYS[L.dayKey],exs=dayEx(L.dayKey,p),wk=weekNo(viewDate);
+  const isToday=viewDate===logicalDate(new Date());
+  const used=new Set(plan.week);
+  const opts=Object.entries(DAYS).filter(([k])=>used.has(k)||k===L.dayKey||k==="rest").map(([k,v])=>`<option value="${k}"${k===L.dayKey?" selected":""}>${v.name}</option>`).join("");
+  const gym=toMin(p.gym);
+  const exHtml=exs.map(ex=>{
+    const n=setsFor(ex,viewDate),e=L.ex[ex.id]||{w:"",r:[]},last=lastFor(ex.id,viewDate);
+    let cells=`<div><label for="w-${ex.id}">kg</label><input type="number" inputmode="decimal" id="w-${ex.id}" data-ex="${ex.id}" data-k="w" value="${esc(e.w)}" placeholder="kg"></div>`;
+    for(let i=0;i<n;i++)cells+=`<div><label for="r-${ex.id}-${i}">Set ${i+1}</label><input type="number" inputmode="numeric" id="r-${ex.id}-${i}" data-ex="${ex.id}" data-k="r" data-i="${i}" value="${esc(e.r[i]??"")}" placeholder="reps"></div>`;
+    return `<div class="ex"><div class="row"><span class="exname sp">${esc(ex.n)}</span><span class="target">${n} × ${esc(ex.r)}</span></div><div class="sets">${cells}</div>
+      ${last?`<div class="last">Last time: <span class="num">${esc(last)}</span></div>`:""}${ex.tip?`<div class="tip">${esc(ex.tip)}</div>`:""}</div>`}).join("");
+  const mealsHtml=plan.meals.map(m=>`<label class="check"><input type="checkbox" id="meal-${m.id}" data-meal="${m.id}"${L.meals[m.id]?" checked":""}>
+    <span class="body"><span class="row"><span class="time">${m.t}</span><b class="sp">${m.name}</b><span class="macro">~${m.kcal} kcal · ${m.p} g P</span></span>
+    <span class="muted" style="font-size:.9rem">${esc(m.items)}</span></span></label>`).join("");
+  const glasses=Array.from({length:plan.water},(_,i)=>`<button class="glass${i<(L.water||0)?" on":""}" data-glass="${i}" aria-label="Glass ${i+1}"></button>`).join("");
+  const easeTxt=p.exp==="new"?"<b>First 2 weeks.</b> 2 working sets per exercise with light weights. Learn each movement; ask a trainer to check your squat and deadlift form.":"<b>Comeback weeks 1–2.</b> 2 working sets per exercise, about 60–70% of your old weights, stop 3 reps before failure.";
+  el.innerHTML=`
+  <div class="dayhead"><div>
+      <div class="eyebrow">${isToday?"Today · ":""}Week ${wk}</div>
+      <h1>${D.ex.length?D.name+" day":"Rest day"}</h1>
+      <div class="muted">${fmtDate(viewDate)} · ${D.focus}</div></div>
+    <div class="row"><button class="btn icon" id="prev" aria-label="Previous day">‹</button>
+      <button class="btn" id="todayBtn"${isToday?" disabled":""}>Today</button>
+      <button class="btn icon" id="next" aria-label="Next day">›</button></div></div>
+  <div class="row"><label for="dayKey" class="muted" style="font-size:.85rem">Training today:</label><select id="dayKey">${opts}</select>
+    <span class="muted" style="font-size:.8rem">Switch if you train on a different day.</span></div>
+  ${easeIn(viewDate)&&D.ex.length?`<div class="note">${easeTxt}</div>`:""}
+  <div id="summary"></div>
+  ${D.ex.length?`<div class="card"><div class="row" style="margin-bottom:6px"><h2 class="sp">Workout</h2><span class="eyebrow">${fmt12(gym)} – ${fmt12(gym+90)}</span></div>
+    <div class="tip" style="margin-bottom:8px">Warm up 5 min on the bike, then 1–2 light sets of the first exercise. Rest 2 min on big lifts, 60–90 s on the rest.</div>
+    ${exHtml}
+    <label class="check" style="border-top:1px solid var(--line)"><input type="checkbox" id="cardio"${L.cardio?" checked":""}><span class="body"><b>Cardio finisher</b><br><span class="muted" style="font-size:.9rem">${plan.cardio}</span></span></label>
+    <label class="check"><input type="checkbox" id="done"${L.done?" checked":""}><span class="body"><b>Workout complete</b></span></label></div>`
+  :`<div class="card"><h2>Rest day</h2><p class="muted" style="margin:6px 0 0">${plan.steps.toLocaleString()} steps and 15–20 min of stretching. Eat the same meals; the pre-workout coffee is optional.</p>
+    <label class="check" style="margin-top:6px"><input type="checkbox" id="done"${L.done?" checked":""}><span class="body"><b>Walk and stretch done</b></span></label></div>`}
+  <div class="card"><div class="row" style="margin-bottom:4px"><h2 class="sp">Meals</h2><span class="eyebrow">~${plan.kcal} kcal · ${plan.prot} g protein</span></div>${mealsHtml}</div>
+  <div class="card stack"><div class="row"><h2 class="sp">Water</h2><span class="num muted" id="waterTxt"></span></div><div class="glasses">${glasses}</div></div>
+  <div class="card"><h2 style="margin-bottom:10px">Body & recovery</h2><div class="grid2">
+      <div class="field"><label for="weight">Weight (kg) on waking</label><input type="number" inputmode="decimal" id="weight" data-f="weight" value="${esc(L.weight)}" placeholder="${esc(p.weight)}"></div>
+      <div class="field"><label for="waist">Waist (in), weekly</label><input type="number" inputmode="decimal" id="waist" data-f="waist" value="${esc(L.waist)}" placeholder="${esc(p.waist||"")}"></div>
+      <div class="field"><label for="steps">Steps (target ${plan.steps.toLocaleString()})</label><input type="number" inputmode="numeric" id="steps" data-f="steps" value="${esc(L.steps)}"></div>
+      <div class="field"><label for="sleep">Sleep (hours)</label><input type="number" inputmode="decimal" id="sleep" data-f="sleep" value="${esc(L.sleep)}" placeholder="7"></div></div>
+    <div class="field" style="margin-top:10px"><label for="note">Note</label><input type="text" id="note" data-f="note" value="${esc(L.note)}" placeholder="Energy, pain, what felt strong"></div></div>`;
+  renderSummary();
+}
+function renderSummary(){
+  const el=document.getElementById("summary");if(!el||!P())return;
+  const plan=compute(P()),L=getLog(viewDate),eaten=plan.meals.filter(m=>L.meals[m.id]);
+  const kcal=eaten.reduce((a,m)=>a+m.kcal,0),pr=eaten.reduce((a,m)=>a+m.p,0),w=L.water||0;
+  el.innerHTML=`<div class="stats">
+    <div class="stat"><span class="eyebrow">Calories</span><b>${kcal}</b><div class="meter"><i style="width:${Math.min(100,kcal/plan.kcal*100)}%"></i></div></div>
+    <div class="stat"><span class="eyebrow">Protein</span><b>${pr} g</b><div class="meter"><i style="width:${Math.min(100,pr/plan.prot*100)}%"></i></div></div>
+    <div class="stat"><span class="eyebrow">Water</span><b>${w}/${plan.water}</b><div class="meter"><i style="width:${Math.min(100,w/plan.water*100)}%"></i></div></div></div>`;
+  const wt=document.getElementById("waterTxt");if(wt)wt.textContent=`${w} / ${plan.water} glasses (250 ml)`;
+}
+
+/* ================= WORKOUT PLAN ================= */
+function renderPlan(){
+  const el=document.getElementById("tab-plan");
+  if(!P()){el.innerHTML=`<div><h1>Training split</h1></div>`+needProfile();return}
+  const p=P(),plan=compute(p),todayIdx=parse(logicalDate(new Date())).getDay();
+  const week=[1,2,3,4,5,6,0].map(i=>{const k=plan.week[i];return `<div class="wd${k==="rest"?" rest":""}${i===todayIdx?" today":""}"><span>${WEEKNAMES[i]}</span><b>${DAYS[k].name.replace("Full body ","Full ")}</b></div>`}).join("");
+  const keys=[...new Set(plan.week.filter(k=>k!=="rest"))];
+  const blocks=keys.map(k=>{const D=DAYS[k];return `<div class="card"><div class="row" style="margin-bottom:6px"><h2 class="sp">${D.name}</h2><span class="eyebrow">${D.focus}</span></div>
+    <div class="tablewrap"><table><thead><tr><th>Exercise</th><th>Sets × reps</th></tr></thead><tbody>
+    ${dayEx(k,p).map(e=>`<tr><td>${esc(e.n)}</td><td class="n">${e.s} × ${esc(e.r)}</td></tr>`).join("")}
+    <tr><td class="muted">Finisher: ${plan.cardio}</td><td></td></tr></tbody></table></div></div>`}).join("");
+  const W=toMin(p.wake),rows=[[0,fmt12(W),"Wake up. Weigh yourself after the bathroom, before food."],...plan.meals.map((m,i)=>[mealTimes(p)[i].rel,m.t,m.name]),[(toMin(p.gym)-W+1440)%1440,fmt12(toMin(p.gym)),"Gym, about 90 min"],[(toMin(p.sleep)-W+1440)%1440||1020,fmt12(toMin(p.sleep)),"Sleep. Dark room, 7 hours minimum."]].sort((a,b)=>a[0]-b[0]);
+  el.innerHTML=`
+  <div><div class="eyebrow">${p.days} days a week · 75–90 min</div><h1>Training split</h1></div>
+  <div style="overflow-x:auto"><div class="week" style="min-width:420px">${week}</div></div>
+  <div class="card"><h2 style="margin-bottom:8px">How to progress</h2><ul class="plain">
+    ${p.exp!=="regular"?`<li><b>Weeks 1–2:</b> 2 sets per exercise with light weights. The app shows 2 sets until week 3.</li>`:""}
+    <li><b>Double progression:</b> once you hit the top of the rep range on every set, add 2.5 kg on upper-body lifts or 5 kg on legs next time.</li>
+    <li>Leave 1–2 reps in the tank on most sets.</li>
+    <li>Under each exercise the app shows what you lifted last time. Beat it by one rep or a little weight.</li>
+    <li>Every 6th week, drop to 2 sets with lighter weights to recover.</li>
+    ${p.sex==="female"?`<li>Women build muscle the same way and won't get bulky from these weights. Leg days include hip thrusts for glutes.</li>`:""}
+  </ul></div>
+  ${blocks}
+  <div class="card"><h2 style="margin-bottom:8px">Your daily schedule</h2><div class="tablewrap"><table><tbody>
+    ${rows.map(r=>`<tr><td class="n">${r[1]}</td><td>${esc(r[2])}</td></tr>`).join("")}
+  </tbody></table></div>
+  <p class="tip" style="margin:8px 0 0">Times follow this phone's clock: ${tzName()} (${tzOffset()}). The day in this app rolls over at ${fmt12(rollHour()*60)}, so a late-night snack is logged on the right day.</p></div>`;
+}
+
+/* ================= DIET ================= */
+function renderDiet(){
+  const el=document.getElementById("tab-diet");
+  if(!P()){el.innerHTML=`<div><h1>Diet plan</h1></div>`+needProfile();return}
+  const p=P(),plan=compute(p),tk=plan.meals.reduce((a,m)=>a+m.kcal,0),tp=plan.meals.reduce((a,m)=>a+m.p,0);
+  const goalTxt={lose:`a moderate deficit to lose about 0.5 kg of fat a week while protein and lifting protect muscle`,recomp:`a small deficit, so you slowly lose fat while building muscle`,build:`a small surplus to build muscle with minimal fat gain`}[p.goal];
+  const swaps=p.diet==="nonveg"?[["150 g fish (rohu, surmai, tilapia)","~35 g"],["2 bowls daal or chana + 3 egg whites","~30 g"],["100 g paneer","~18 g"],["150 g lean beef qeema, fat drained","~35 g"],["4 whole eggs","~25 g"]]
+    :p.diet==="egg"?[["4 whole eggs","~25 g"],["100 g paneer","~18 g"],["1 bowl daal + 1 bowl chana","~18 g"],["250 g dahi","~9 g"],["50 g dry soya chunks","~26 g"]]
+    :[["100 g paneer","~18 g"],["50 g dry soya chunks","~26 g"],["1 bowl daal + 1 bowl chana","~18 g"],["1 glass milk","~8 g"],["½ cup roasted peanuts","~19 g"]];
+  el.innerHTML=`
+  <div><div class="eyebrow">Desi · no supplements · ${{nonveg:"non-veg",egg:"eggs, no meat",veg:"vegetarian"}[p.diet]}</div><h1>Diet plan</h1></div>
+  <div class="kpis">
+    <div class="stat"><span class="eyebrow">Calories</span><b>${plan.kcal}</b></div>
+    <div class="stat"><span class="eyebrow">Protein</span><b>${plan.prot} g</b></div>
+    <div class="stat"><span class="eyebrow">Carbs</span><b>${plan.carbs} g</b></div>
+    <div class="stat"><span class="eyebrow">Fat</span><b>${plan.fat} g</b></div></div>
+  <div class="note">Your estimated maintenance is about <b>${plan.tdee.toLocaleString()} kcal</b> a day. ${plan.kcal.toLocaleString()} kcal is ${goalTxt}.${tp<plan.prot-10?` These meals give about ${tp} g protein, ${plan.prot-tp} g short of your target. Close the gap with ${p.diet==="nonveg"?"2 extra egg whites or a bigger chicken portion":"a glass of milk (8 g), 100 g paneer (18 g) or 50 g dry soya chunks (26 g)"}.`:""}${p.diet==="veg"?" Without meat or eggs, protein is the hard part: get it from milk, dahi, paneer, soya chunks, daal and chana at every meal.":""}</div>
+  <div class="card"><h2 style="margin-bottom:6px">Daily meals</h2><div class="tablewrap"><table><thead><tr><th>Time</th><th>Meal</th><th>kcal</th><th>Protein</th></tr></thead><tbody>
+    ${plan.meals.map(m=>`<tr><td class="n">${m.t}</td><td><b>${m.name}</b><br><span class="muted">${esc(m.items)}</span></td><td class="n">${m.kcal}</td><td class="n">${m.p} g</td></tr>`).join("")}
+    <tr><td></td><td><b>Approximate total</b></td><td class="n"><b>${tk}</b></td><td class="n"><b>${tp} g</b></td></tr></tbody></table></div></div>
+  <div class="card"><h2 style="margin-bottom:8px">Natural pre-workout options</h2><ul class="plain">
+    <li><b>Standard:</b> banana + 3 khajoor + black coffee, 60–90 min before.</li>
+    <li><b>Gur shot:</b> a small piece of gur (10 g) with nimbu pani and a pinch of namak.</li>
+    <li><b>Leg days:</b> ½ chapati or 1 slice whole-wheat bread with 1 tsp honey, plus coffee.</li>
+    <li>No coffee within 7 hours of sleep (${fmt12(toMin(p.sleep)-420)} is your cut-off).</li></ul></div>
+  <div class="card"><h2 style="margin-bottom:8px">Protein swaps</h2><div class="tablewrap"><table><thead><tr><th>Food</th><th>Protein</th></tr></thead><tbody>
+    ${swaps.map(s=>`<tr><td>${s[0]}</td><td class="n">${s[1]}</td></tr>`).join("")}</tbody></table></div></div>
+  <div class="card"><h2 style="margin-bottom:8px">Rules that do the real work</h2><ul class="plain">
+    <li>Cooking oil: about 3 tbsp for the whole day. Most extra calories in desi food are oil and ghee.</li>
+    <li>Count chapatis. Skip naan, paratha and puri except on one free meal a week.</li>
+    <li>No cold drinks, juices, mithai, samosa or pakora on normal days. One free meal a week, not a free day.</li>
+    <li>Chai: 2 cups max, 1 tsp sugar each.</li>
+    <li>Water: ${plan.water} glasses a day, more on hot gym days.</li>
+    <li>Half the plate salad or sabzi at lunch and dinner.</li></ul></div>
+  <div class="card"><h2 style="margin-bottom:8px">Weekly check-in</h2><ul class="plain">
+    <li>Weigh every morning on waking, and judge by the 7-day average in Progress.</li>
+    <li>Measure your waist at the navel once a week.</li>
+    ${p.goal==="build"?`<li>Gaining 0.25–0.5 kg a week: keep going. Not gaining for 2 weeks: add 1 chapati or a banana a day. Gaining faster than 0.5 kg a week: remove one.</li>`
+      :`<li>Losing 0.4–0.8 kg a week: keep going. Not moving for 2 weeks: drop one chapati a day. Losing over 1 kg a week or weak in the gym: add a banana or a cup of rice.</li>`}
+    <li>Update your weight in Profile every few weeks so calories and portions stay right.</li></ul>
+  <p class="tip" style="margin:8px 0 0">Pregnant, diabetic, or dealing with blood pressure, kidney or heart issues? Show this plan to your doctor before starting.</p></div>`;
+}
+
+/* ================= PROGRESS ================= */
+function renderProgress(){
+  const el=document.getElementById("tab-progress");
+  if(!P()){el.innerHTML=`<div><h1>Progress</h1></div>`+needProfile();return}
+  const p=P(),today=logicalDate(new Date());
+  const last7=[...Array(7)].map((_,i)=>addDays(today,-i)),prev7=[...Array(7)].map((_,i)=>addDays(today,-7-i));
+  const avg=ds=>{const v=ds.map(d=>parseFloat(logs[d]?.weight)).filter(x=>!isNaN(x));return v.length?v.reduce((a,b)=>a+b,0)/v.length:null};
+  const a1=avg(last7),a0=avg(prev7),delta=a1!=null&&a0!=null?a1-a0:null;
+  const workouts=last7.filter(d=>logs[d]?.done&&logs[d].dayKey!=="rest").length;
+  const nMeals=compute(p).meals.length;
+  const mealsHit=last7.reduce((a,d)=>a+Object.values(logs[d]?.meals||{}).filter(Boolean).length,0);
+  const waists=Object.keys(logs).filter(d=>logs[d].waist).sort(),w=waists.length?logs[waists[waists.length-1]].waist:null;
+  const active=d=>{const L=logs[d];return !!(L&&(L.done||Object.values(L.meals||{}).some(Boolean)))};
+  let streak=0,sd=active(today)?today:addDays(today,-1);while(active(sd)&&streak<1000){streak++;sd=addDays(sd,-1)}
+  el.innerHTML=`
+  <div><div class="eyebrow">Week ${weekNo(today)}</div><h1>Progress</h1></div>
+  <div class="stats">
+    <div class="stat"><span class="eyebrow">7-day avg weight</span><b>${a1!=null?a1.toFixed(1):"–"}</b><span class="muted" style="font-size:.8rem">${delta!=null?(delta<=0?"▼ ":"▲ ")+Math.abs(delta).toFixed(1)+" kg vs last week":"kg"}</span></div>
+    <div class="stat"><span class="eyebrow">Workouts, 7 days</span><b>${workouts}/${p.days}</b></div>
+    <div class="stat"><span class="eyebrow">Meals on plan, 7 days</span><b>${mealsHit}/${nMeals*7}</b></div>
+    <div class="stat"><span class="eyebrow">Latest waist</span><b>${w?esc(w)+"″":"–"}</b></div>
+    <div class="stat"><span class="eyebrow">Logging streak</span><b>${streak} d</b></div></div>
+  <div class="card chart"><div class="row" style="margin-bottom:8px"><h2 class="sp">Body weight</h2><span class="eyebrow">Solid: daily · Dashed: 7-day avg</span></div>${weightChart()}</div>
+  <div class="card"><h2 style="margin-bottom:8px">Recent days</h2>${recentTable(nMeals)}</div>`;
+}
+function weightChart(){
+  const ds=Object.keys(logs).filter(d=>!isNaN(parseFloat(logs[d].weight))).sort().slice(-60);
+  if(ds.length<2)return `<p class="muted" style="margin:0">Log your weight on the Today tab each morning. The line appears after two entries.</p>`;
+  const vals=ds.map(d=>parseFloat(logs[d].weight));const lo=Math.floor(Math.min(...vals)-1),hi=Math.ceil(Math.max(...vals)+1);
+  const W=620,H=230,L=44,R=14,T=12,B=30,t0=parse(ds[0]).getTime(),t1=parse(ds[ds.length-1]).getTime();
+  const x=d=>L+(parse(d).getTime()-t0)/Math.max(1,t1-t0)*(W-L-R),y=v=>T+(hi-v)/(hi-lo)*(H-T-B);
+  const line=ds.map((d,i)=>(i?"L":"M")+x(d).toFixed(1)+","+y(vals[i]).toFixed(1)).join("");
+  const avg=ds.map((d,i)=>{const win=ds.filter(e=>e<=d&&e>addDays(d,-7)).map(e=>parseFloat(logs[e].weight));return (i?"L":"M")+x(d).toFixed(1)+","+y(win.reduce((a,b)=>a+b,0)/win.length).toFixed(1)}).join("");
+  const short=d=>parse(d).toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Body weight over time">
+    ${[lo,(lo+hi)/2,hi].map(t=>`<line class="axis" x1="${L}" x2="${W-R}" y1="${y(t)}" y2="${y(t)}"/><text class="lbl" x="${L-8}" y="${y(t)+4}" text-anchor="end">${t%1?t.toFixed(1):t}</text>`).join("")}
+    <path class="avg" d="${avg}"/><path class="ln" d="${line}"/>
+    ${ds.map((d,i)=>`<circle class="pt" cx="${x(d)}" cy="${y(vals[i])}" r="3.5"/>`).join("")}
+    <text class="lbl" x="${L}" y="${H-8}">${short(ds[0])}</text><text class="lbl" x="${W-R}" y="${H-8}" text-anchor="end">${short(ds[ds.length-1])}</text></svg>`;
+}
+function recentTable(nMeals){
+  const ds=Object.keys(logs).filter(d=>/^\d{4}-\d\d-\d\d$/.test(d)).sort().reverse().slice(0,14);
+  if(!ds.length)return `<p class="muted" style="margin:0">Nothing logged yet. Tick a meal or enter a set on the Today tab and it shows up here.</p>`;
+  return `<div class="tablewrap"><table><thead><tr><th>Day</th><th>Session</th><th>Meals</th><th>Weight</th><th>Water</th></tr></thead><tbody>
+  ${ds.map(d=>{const L=logs[d],m=Object.values(L.meals||{}).filter(Boolean).length;return `<tr><td class="n">${parse(d).toLocaleDateString("en-GB",{weekday:"short",day:"numeric",month:"short"})}</td><td>${DAYS[L.dayKey]?.name||""} ${L.done?"<span style='color:var(--good)'>✓</span>":""}</td><td class="n">${m}/${nMeals}</td><td class="n">${esc(L.weight)||"–"}</td><td class="n">${L.water||0}</td></tr>`}).join("")}
+  </tbody></table></div>`;
+}
+
+/* ================= PROFILE ================= */
+function seg(name,opts,val){return `<div class="seg" role="radiogroup">${opts.map(([v,l])=>`<input type="radio" name="${name}" id="${name}-${v}" value="${v}"${String(val)===String(v)?" checked":""}><label for="${name}-${v}">${l}</label>`).join("")}</div>`}
+function renderMe(){
+  const p=P()||{sex:"male",body:"average",goal:"lose",exp:"returning",days:5,activity:"desk",diet:"nonveg",wake:"08:00",gym:"19:00",sleep:"23:30"};
+  const ft=p.cm?Math.floor(p.cm/30.48):"",inch=p.cm?Math.round(p.cm/2.54-ft*12):"";
+  const plan=P()?compute(P()):null;
+  document.getElementById("tab-me").innerHTML=`
+  <div><div class="eyebrow">${P()?"Your profile":"Step 1 of 1"}</div><h1>${P()?"Profile":"Build your plan"}</h1>
+  ${P()?"":`<p class="muted" style="margin:6px 0 0">Fill this in once. Your workout, calories, meal portions and meal times are worked out from it. Only you can see your profile and logs.</p>`}</div>
+  <form id="pform" class="card stack" novalidate>
+    <div class="form">
+      <div class="field wide"><label for="f-name">Name (optional)</label><input type="text" id="f-name" value="${esc(p.name)}" placeholder="What should the app call you?"></div>
+      <div class="field wide"><label>Gender</label>${seg("sex",[["male","Male"],["female","Female"]],p.sex)}</div>
+      <div class="field"><label for="f-age">Age</label><input type="number" inputmode="numeric" id="f-age" value="${esc(p.age)}" placeholder="30" min="14" max="80"></div>
+      <div class="field"><label for="f-ft">Height</label><div class="hpair"><input type="number" inputmode="numeric" id="f-ft" value="${ft}" placeholder="ft" aria-label="Feet"><input type="number" inputmode="numeric" id="f-in" value="${inch}" placeholder="in" aria-label="Inches"></div></div>
+      <div class="field"><label for="f-weight">Weight (kg)</label><input type="number" inputmode="decimal" id="f-weight" value="${esc(p.weight)}" placeholder="75"></div>
+      <div class="field"><label for="f-waist">Waist (in, optional)</label><input type="number" inputmode="decimal" id="f-waist" value="${esc(p.waist)}" placeholder="34"></div>
+      <div class="field wide"><label>Body type</label>${seg("body",[["lean","Lean, hard to gain"],["average","Average"],["heavier","Carry extra fat"]],p.body)}</div>
+      <div class="field wide"><label>Goal</label>${seg("goal",[["lose","Lose fat"],["recomp","Lose fat + build muscle"],["build","Build muscle"]],p.goal)}</div>
+      <div class="field wide"><label>Gym experience</label>${seg("exp",[["new","New to gym"],["returning","Returning after a break"],["regular","Training regularly"]],p.exp)}</div>
+      <div class="field wide"><label>Gym days per week</label>${seg("days",[["3","3"],["4","4"],["5","5"],["6","6"]],p.days)}</div>
+      <div class="field wide"><label>Rest of your day</label>${seg("activity",[["desk","Desk / mostly sitting"],["moderate","On my feet some"],["active","Physical job"]],p.activity)}</div>
+      <div class="field wide"><label>Food</label>${seg("diet",[["nonveg","Non-veg"],["egg","Eggs, no meat"],["veg","Vegetarian"]],p.diet)}</div>
+      <p class="tip wide" style="margin:0">Enter times in your local time. This phone is set to <b>${tzName()}</b> (${tzOffset()}).</p>
+      <div class="field"><label for="f-wake">Wake up</label><input type="time" id="f-wake" value="${esc(p.wake)}"></div>
+      <div class="field"><label for="f-gym">Gym start</label><input type="time" id="f-gym" value="${esc(p.gym)}"></div>
+      <div class="field"><label for="f-sleep">Sleep</label><input type="time" id="f-sleep" value="${esc(p.sleep)}"></div>
+    </div>
+    <p id="ferr" class="status err" style="margin:0" hidden></p>
+    <div class="row"><button type="submit" class="btn primary">${P()?"Update my plan":"Build my plan"}</button><span id="fok" class="status ok"></span></div>
+  </form>
+  ${plan?`<div class="card"><h2 style="margin-bottom:8px">Your numbers</h2><div class="tablewrap"><table><tbody>
+    <tr><td>Resting burn (BMR)</td><td class="n">${plan.bmr.toLocaleString()} kcal</td></tr>
+    <tr><td>Estimated daily burn</td><td class="n">${plan.tdee.toLocaleString()} kcal</td></tr>
+    <tr><td>Daily target</td><td class="n">${plan.kcal.toLocaleString()} kcal</td></tr>
+    <tr><td>Protein · carbs · fat</td><td class="n">${plan.prot} · ${plan.carbs} · ${plan.fat} g</td></tr>
+    <tr><td>Water · steps</td><td class="n">${plan.water} glasses · ${plan.steps.toLocaleString()}</td></tr></tbody></table></div>
+    <p class="tip" style="margin:8px 0 0">Estimates from the Mifflin-St Jeor formula. Your weekly weight trend is the real test; adjust as the Diet tab explains.</p></div>`:""}
+  <div class="card stack"><h2>Backup</h2>
+    <p class="muted" style="margin:0;font-size:.9rem">Your logs are saved inside this app on this phone. Copy a backup code now and then, and paste it here on a new phone to bring everything back.</p>
+    <div class="row"><button class="btn" id="copyBk" type="button">Copy backup code</button><span id="bkMsg" class="status"></span></div>
+    <label for="bkIn" class="eyebrow">Restore from a backup code</label>
+    <textarea id="bkIn" placeholder="Paste a backup code"></textarea>
+    <div class="row"><button class="btn danger" id="restoreBk" type="button">Restore and replace my data</button></div>
+  </div>`;
+}
+function readForm(){
+  const v=id=>document.getElementById(id).value.trim(),r=n=>(document.querySelector(`input[name="${n}"]:checked`)||{}).value;
+  const ft=parseFloat(v("f-ft"))||0,inch=parseFloat(v("f-in"))||0,cm=Math.round((ft*12+inch)*2.54);
+  const p={name:v("f-name"),sex:r("sex"),age:parseInt(v("f-age")),cm,weight:parseFloat(v("f-weight")),waist:v("f-waist"),body:r("body"),goal:r("goal"),exp:r("exp"),days:parseInt(r("days")),activity:r("activity"),diet:r("diet"),wake:v("f-wake"),gym:v("f-gym"),sleep:v("f-sleep")};
+  const errs=[];
+  if(!(p.age>=14&&p.age<=80))errs.push("age between 14 and 80");
+  if(!(cm>=135&&cm<=220))errs.push("height in feet and inches");
+  if(!(p.weight>=35&&p.weight<=200))errs.push("weight in kg");
+  if(!p.wake||!p.gym||!p.sleep)errs.push("wake, gym and sleep times");
+  return {p,errs};
+}
+
+/* ================= EVENTS ================= */
+function renderAll(){whoLine();renderToday();renderPlan();renderDiet();renderProgress();renderMe()}
+function showTab(t){
+  document.querySelectorAll("nav.tabs button").forEach(x=>x.setAttribute("aria-selected",x.dataset.tab===t?"true":"false"));
+  ["today","plan","diet","progress","me"].forEach(k=>document.getElementById("tab-"+k).hidden=k!==t);
+  if(t==="progress")renderProgress();
+  window.scrollTo(0,0);
+}
+document.querySelector("nav.tabs").addEventListener("click",e=>{const b=e.target.closest("button[data-tab]");if(b)showTab(b.dataset.tab)});
+document.querySelector("main").addEventListener("click",e=>{const b=e.target.closest("[data-go]");if(b)showTab(b.dataset.go)});
+const today=document.getElementById("tab-today");
+today.addEventListener("input",e=>{
+  const t=e.target;if(!P())return;const L=getLog(viewDate);
+  if(t.dataset.ex){const ex=L.ex[t.dataset.ex]||(L.ex[t.dataset.ex]={w:"",r:[]});if(t.dataset.k==="w")ex.w=t.value;else ex.r[+t.dataset.i]=t.value;queueSave(viewDate)}
+  else if(t.dataset.f){L[t.dataset.f]=t.value;queueSave(viewDate)}
+});
+today.addEventListener("change",e=>{
+  const t=e.target;if(!P())return;const L=getLog(viewDate);
+  if(t.dataset.meal){L.meals[t.dataset.meal]=t.checked;renderSummary();queueSave(viewDate)}
+  else if(t.id==="cardio"||t.id==="done"){L[t.id]=t.checked;queueSave(viewDate)}
+  else if(t.id==="dayKey"){L.dayKey=t.value;queueSave(viewDate);renderToday()}
+});
+today.addEventListener("click",e=>{
+  const t=e.target.closest("button");if(!t||!P())return;
+  if(t.dataset.glass!=null){const L=getLog(viewDate),i=+t.dataset.glass;L.water=(L.water||0)===i+1?i:i+1;
+    today.querySelectorAll(".glass").forEach((g,j)=>g.classList.toggle("on",j<L.water));renderSummary();queueSave(viewDate)}
+  else if(t.id==="prev"){viewDate=addDays(viewDate,-1);renderToday()}
+  else if(t.id==="next"){viewDate=addDays(viewDate,1);renderToday()}
+  else if(t.id==="todayBtn"){checkNewDay();viewDate=lastToday;renderToday()}
+});
+const me=document.getElementById("tab-me");
+me.addEventListener("submit",e=>{
+  e.preventDefault();const {p,errs}=readForm(),err=document.getElementById("ferr");
+  if(errs.length){err.hidden=false;err.textContent="Please add your "+errs.join(", ")+".";return}
+  const first=!P();settings.profile=p;if(!settings.start)settings.start=logicalDate(new Date());
+  const td=logicalDate(new Date());if(logs[td]&&!Object.keys(logs[td].ex||{}).length&&!logs[td].done)logs[td].dayKey=compute(p).week[parse(td).getDay()];
+  viewDate=td;queueSave("settings");renderAll();
+  if(first)showTab("today");else{const ok=document.getElementById("fok");if(ok)ok.textContent="Plan updated"}
+});
+let restoreArmed=false;
+me.addEventListener("click",async e=>{
+  const b=e.target.closest("button");if(!b)return;
+  if(b.id==="copyBk"){
+    const code=btoa(unescape(encodeURIComponent(JSON.stringify({logs,settings}))));const msg=document.getElementById("bkMsg");
+    try{await navigator.clipboard.writeText(code);msg.textContent="Copied. Keep it in WhatsApp or Notes.";msg.className="status ok"}
+    catch(_){const ta=document.getElementById("bkIn");ta.value=code;ta.select();msg.textContent="Selected in the box below. Copy it from there.";msg.className="status"}
+  }
+  if(b.id==="restoreBk"){
+    const msg=document.getElementById("bkMsg");
+    if(!restoreArmed){restoreArmed=true;b.textContent="Tap again to replace all data";setTimeout(()=>{restoreArmed=false;b.textContent="Restore and replace my data"},5000);return}
+    restoreArmed=false;
+    try{const j=JSON.parse(decodeURIComponent(escape(atob(document.getElementById("bkIn").value.trim()))));
+      if(!j||typeof j.logs!=="object")throw 0;
+      logs=j.logs;settings=Object.assign({start:null,profile:null},j.settings||{});
+      const now=Date.now();Object.keys(logs).forEach(k=>{logs[k].ts=now;pending.add(k)});queueSave("settings");checkNewDay();viewDate=lastToday;renderAll();showTab("today");
+    }catch(_){b.textContent="Restore and replace my data";msg.textContent="That code didn't work. Copy the whole code and try again.";msg.className="status err"}
+  }
+});
+init();
+</script>
+
+<script>
+// Native app: keep content clear of the Android status and gesture bars.
+(function(){var C=window.Capacitor;if(!C||!C.getPlatform||C.getPlatform()!=="android")return;
+var pr=document.createElement("div");pr.style.cssText="position:fixed;top:0;height:env(safe-area-inset-top,0px)";document.body.appendChild(pr);
+if(pr.offsetHeight<1){document.documentElement.style.paddingTop="28px";var n=document.querySelector("nav.tabs");if(n)n.style.paddingBottom="14px"}pr.remove()})();
+</script>
+<script>if(!window.Capacitor&&"serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}))}</script>
+</body>
+</html>
