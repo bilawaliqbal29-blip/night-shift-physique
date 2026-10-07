@@ -230,7 +230,7 @@ const P=()=>settings.profile;
 /* ================= DATES ================= */
 function pad(n){return String(n).padStart(2,"0")}
 function ymd(d){return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())}
-function rollHour(){const p=P();if(!p)return 4;const h=Math.floor(toMin(p.sleep)/60);return h<12?Math.min(h+1,11):4}
+function rollHour(){return 0}
 function logicalDate(d){return ymd(new Date(d.getTime()-rollHour()*3600e3))}
 function parse(s){const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)}
 function addDays(s,n){const d=parse(s);d.setDate(d.getDate()+n);return ymd(d)}
@@ -478,7 +478,7 @@ function renderPlan(){
   <div class="card"><h2 style="margin-bottom:8px">Your daily schedule</h2><div class="tablewrap"><table><tbody>
     ${rows.map(r=>`<tr><td class="n">${r[1]}</td><td>${esc(r[2])}</td></tr>`).join("")}
   </tbody></table></div>
-  <p class="tip" style="margin:8px 0 0">The day in this app rolls over at ${fmt12(rollHour()*60)}, so a late-night snack is logged on the right day.</p></div>`;
+  <p class="tip" style="margin:8px 0 0">The day changes at midnight, following your phone's date and time.</p></div>`;
 }
 
 /* ================= DIET ================= */
